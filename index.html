@@ -2,276 +2,35 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D迷路ゲーム</title>
-    <!-- Three.jsの読み込み（これが大事！） -->
+    <title>3Dテスト - これだけ動けばOK</title>
     <script src="https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; }
-        canvas { display: block; }
-        #info {
-            position: absolute;
-            top: 10px; left: 10px;
-            color: white;
-            background: rgba(0,0,0,0.7);
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 16px;
-            pointer-events: none;
-            z-index: 10;
-        }
-        #win {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            color: #0f0;
-            font-size: 60px;
-            font-weight: bold;
-            text-shadow: 0 0 30px #0f0;
-            display: none;
-            text-align: center;
-            pointer-events: none;
-        }
+        body { margin: 0; overflow: hidden; }
     </style>
 </head>
 <body>
-    <div id="info">
-        PC: 画面クリック → マウスで視点 + WASD/矢印キー移動<br>
-        スマホ/iPad: 左下ジョイスティックで移動<br>
-        赤い柱がゴール！
-    </div>
-    <div id="win">クリアおめでとう！！<br><small>リロードで再挑戦</small></div>
-
     <script>
-        // モバイル検知
-        const isMobile = /Mobi|Android|iPad|iPhone|iPod/.test(navigator.userAgent) || 'ontouchstart' in window;
-
-        // Three.js基本設定
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb);
-        scene.fog = new THREE.FogExp2(0x87ceeb, 0.015);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // ライト
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(10, 20, 10);
-        light.castShadow = true;
-        scene.add(light);
-        scene.add(new THREE.AmbientLight(0x888888));
+        const geometry = new THREE.BoxGeometry(2, 2, 2);
+        const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const cube = new THREE.Mesh(geometry, material);
+        scene.add(cube);
 
-        // 地面
-        const floor = new THREE.Mesh(
-            new THREE.PlaneGeometry(50, 50),
-            new THREE.MeshStandardMaterial({ color: 0x228B22 })
-        );
-        floor.rotation.x = -Math.PI / 2;
-        floor.receiveShadow = true;
-        scene.add(floor);
+        camera.position.z = 5;
 
-        // 壁
-        const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x4444aa });
-        const wallSize = 5;
-        const maze = [
-            [1,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,1,0,0,0,0,1],
-            [1,0,1,0,1,0,1,1,0,1],
-            [1,0,1,0,0,0,0,1,0,1],
-            [1,0,1,1,1,1,0,1,0,1],
-            [1,0,0,0,0,0,0,0,0,1],
-            [1,1,1,0,1,1,1,1,0,1],
-            [1,0,0,0,0,0,0,0,0,1],
-            [1,0,1,1,1,1,1,1,0,1],
-            [1,1,1,1,1,1,1,1,1,1]
-        ];
-
-        for (let i = 0; i < maze.length; i++) {
-            for (let j = 0; j < maze[i].length; j++) {
-                if (maze[i][j] === 1) {
-                    const wall = new THREE.Mesh(
-                        new THREE.BoxGeometry(wallSize, wallSize * 2, wallSize),
-                        wallMaterial
-                    );
-                    wall.position.set(j * wallSize - 25, wallSize, i * wallSize - 25);
-                    wall.castShadow = true;
-                    wall.receiveShadow = true;
-                    scene.add(wall);
-                }
-            }
-        }
-
-        // ゴール
-        const goal = new THREE.Mesh(
-            new THREE.BoxGeometry(3, 8, 3),
-            new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.8 })
-        );
-        goal.position.set(35, 4, 35);
-        scene.add(goal);
-
-        // カメラ初期位置
-        camera.position.set(2.5, 5, 12.5);
-
-        // 移動変数
-        let move = { forward: false, backward: false, left: false, right: false };
-
-        // PC操作
-        if (!isMobile) {
-            renderer.domElement.addEventListener('click', () => renderer.domElement.requestPointerLock());
-            document.addEventListener('pointerlockchange', () => {
-                if (document.pointerLockElement === renderer.domElement) {
-                    document.addEventListener('mousemove', onMouseMove);
-                } else {
-                    document.removeEventListener('mousemove', onMouseMove);
-                }
-            });
-
-            let yaw = 0;
-            function onMouseMove(e) {
-                yaw -= e.movementX * 0.002;
-                camera.rotation.y = yaw;
-            }
-
-            document.addEventListener('keydown', e => {
-                switch (e.key.toLowerCase()) {
-                    case 'w': case 'arrowup': move.forward = true; break;
-                    case 's': case 'arrowdown': move.backward = true; break;
-                    case 'a': case 'arrowleft': move.left = true; break;
-                    case 'd': case 'arrowright': move.right = true; break;
-                }
-            });
-            document.addEventListener('keyup', e => {
-                switch (e.key.toLowerCase()) {
-                    case 'w': case 'arrowup': move.forward = false; break;
-                    case 's': case 'arrowdown': move.backward = false; break;
-                    case 'a': case 'arrowleft': move.left = false; break;
-                    case 'd': case 'arrowright': move.right = false; break;
-                }
-            });
-        }
-
-        // ジョイスティック（モバイル用）
-        if (isMobile) {
-            const joystick = document.createElement('div');
-            joystick.id = 'joystick';
-            joystick.style.position = 'absolute';
-            joystick.style.bottom = '30px';
-            joystick.style.left = '30px';
-            joystick.style.width = '120px';
-            joystick.style.height = '120px';
-            joystick.style.background = 'rgba(255,255,255,0.1)';
-            joystick.style.borderRadius = '50%';
-            joystick.style.border = '3px solid rgba(255,255,255,0.3)';
-            document.body.appendChild(joystick);
-
-            const knob = document.createElement('div');
-            knob.id = 'knob';
-            knob.style.position = 'absolute';
-            knob.style.width = '50px';
-            knob.style.height = '50px';
-            knob.style.background = 'rgba(0,255,136,0.8)';
-            knob.style.borderRadius = '50%';
-            knob.style.top = '50%';
-            knob.style.left = '50%';
-            knob.style.transform = 'translate(-50%, -50%)';
-            knob.style.boxShadow = '0 0 20px #00ff88';
-            joystick.appendChild(knob);
-
-            let touchId = null;
-            let centerX, centerY;
-
-            joystick.addEventListener('touchstart', e => {
-                e.preventDefault();
-                if (touchId === null) {
-                    const touch = e.touches[0];
-                    touchId = touch.identifier;
-                    centerX = joystick.offsetLeft + 60;
-                    centerY = joystick.offsetTop + 60;
-                }
-            });
-
-            joystick.addEventListener('touchmove', e => {
-                e.preventDefault();
-                for (let touch of e.touches) {
-                    if (touch.identifier === touchId) {
-                        let dx = touch.clientX - centerX;
-                        let dy = touch.clientY - centerY;
-                        const dist = Math.min(50, Math.hypot(dx, dy));
-                        const angle = Math.atan2(dx, dy);
-                        dx = dist * Math.cos(angle);
-                        dy = dist * Math.sin(angle);
-                        knob.style.transform = `translate(${dx}px, ${dy}px)`;
-
-                        move.forward = dy < -20;
-                        move.backward = dy > 20;
-                        move.left = dx < -20;
-                        move.right = dx > 20;
-                    }
-                }
-            });
-
-            joystick.addEventListener('touchend', () => {
-                touchId = null;
-                knob.style.transform = 'translate(-50%, -50%)';
-                move.forward = move.backward = move.left = move.right = false;
-            });
-        }
-
-        // 衝突検知
-        function canMoveTo(x, z) {
-            const gridX = Math.floor((x + 25) / wallSize);
-            const gridZ = Math.floor((z + 25) / wallSize);
-            if (gridX < 0 || gridX >= 10 || gridZ < 0 || gridZ >= 10) return false;
-            return maze[gridZ][gridX] === 0;
-        }
-
-        // アニメーション
         function animate() {
             requestAnimationFrame(animate);
-
-            const speed = 0.2;
-            let dx = 0, dz = 0;
-
-            if (move.forward) {
-                dx -= Math.sin(camera.rotation.y) * speed;
-                dz -= Math.cos(camera.rotation.y) * speed;
-            }
-            if (move.backward) {
-                dx += Math.sin(camera.rotation.y) * speed;
-                dz += Math.cos(camera.rotation.y) * speed;
-            }
-            if (move.left) {
-                dx -= Math.cos(camera.rotation.y) * speed;
-                dz += Math.sin(camera.rotation.y) * speed;
-            }
-            if (move.right) {
-                dx += Math.cos(camera.rotation.y) * speed;
-                dz -= Math.sin(camera.rotation.y) * speed;
-            }
-
-            const newX = camera.position.x + dx;
-            const newZ = camera.position.z + dz;
-
-            if (canMoveTo(newX, newZ)) {
-                camera.position.x = newX;
-                camera.position.z = newZ;
-            }
-
-            if (camera.position.distanceTo(goal.position) < 5) {
-                document.getElementById('win').style.display = 'block';
-            }
-
+            cube.rotation.x += 0.01;
+            cube.rotation.y += 0.01;
             renderer.render(scene, camera);
         }
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
 
         animate();
     </script>
