@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シンプルチャット</title>
+    <style>
+        body {
+            margin: 0;
+            background: #f0f2f5;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+        }
+        #sidebar {
+            width: 300px;
+            background: #fff;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+        }
+        #sidebar-header {
+            padding: 20px;
+            background: #0084ff;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+        #room-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        .room {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .room:hover, .room.active {
+            background: #e3f2ff;
+        }
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        #chat-header {
+            padding: 20px;
+            background: #0084ff;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+        }
+        #messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: white;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .message.me {
+            background: #0084ff;
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .message.other {
+            background: #e4e6eb;
+            color: black;
+            align-self: flex-start;
+        }
+        .message-name {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+        #input-area {
+            display: flex;
+            padding: 10px;
+            background: white;
+            border-top: 1px solid #ddd;
+        }
+        #message-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+        }
+        #send-btn {
+            margin-left: 10px;
+            padding: 0 20px;
+            background: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #name-input {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            text-align: center;
+            z-index: 100;
+        }
+        #name-input input {
+            padding: 10px;
+            width: 200px;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        #name-input button {
+            padding: 10px 20px;
+            background: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="name-input">
+        <h2>あなたの名前を入力</h2>
+        <input type="text" id="username" placeholder="名前" maxlength="20">
+        <button onclick="setName()">開始</button>
+    </div>
+
+    <div id="sidebar">
+        <div id="sidebar-header">チャットルーム</div>
+        <div id="room-list">
+            <div class="room active" data-room="general">一般チャット</div>
+            <div class="room" data-room="game">ゲーム談義</div>
+            <div class="room" data-room="random">雑談</div>
+            <div class="room" data-room="help">ヘルプ</div>
+        </div>
+    </div>
+
+    <div id="main">
+        <div id="chat-header">一般チャット</div>
+        <div id="messages"></div>
+        <div id="input-area">
+            <input type="text" id="message-input" placeholder="メッセージを入力..." maxlength="200">
+            <button id="send-btn">送信</button>
+        </div>
+    </div>
+
+    <script>
+        let username = '';
+        let currentRoom = 'general';
+        const messages = {};
+
+        // ルームごとのメッセージ保存
+        ['general', 'game', 'random', 'help'].forEach(room => {
+            messages[room] = JSON.parse(localStorage.getItem(`chat_${room}`) || '[]');
+        });
+
+        function setName() {
+            username = document.getElementById('username').value.trim() || '名無しさん';
+            document.getElementById('name-input').style.display = 'none';
+            loadMessages();
+        }
+
+        function loadMessages() {
+            const msgDiv = document.getElementById('messages');
+            msgDiv.innerHTML = '';
+            messages[currentRoom].forEach(msg => {
+                addMessage(msg.name, msg.text, msg.time, msg.name === username);
+            });
+            msgDiv.scrollTop = msgDiv.scrollHeight;
+        }
+
+        function addMessage(name, text, time, isMe = false) {
+            const div = document.createElement('div');
+            div.className = 'message ' + (isMe ? 'me' : 'other');
+            div.innerHTML = `
+                <div class="message-name">${name} <span style="font-size:10px;opacity:0.6;">${time}</span></div>
+                <div>${text}</div>
+            `;
+            document.getElementById('messages').appendChild(div);
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+            if (!text) return;
+            const time = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+            messages[currentRoom].push({ name: username, text, time });
+            localStorage.setItem(`chat_${currentRoom}`, JSON.stringify(messages[currentRoom]));
+            addMessage(username, text, time, true);
+            input.value = '';
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+        }
+
+        document.getElementById('send-btn').onclick = sendMessage;
+        document.getElementById('message-input').addEventListener('keypress', e => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // ルーム切り替え
+        document.querySelectorAll('.room').forEach(room => {
+            room.addEventListener('click', () => {
+                document.querySelectorAll('.room').forEach(r => r.classList.remove('active'));
+                room.classList.add('active');
+                currentRoom = room.dataset.room;
+                document.getElementById('chat-header').textContent = room.textContent;
+                loadMessages();
+            });
+        });
+
+        // 初期表示
+        document.getElementById('username').focus();
+    </script>
+</body>
+</html>
